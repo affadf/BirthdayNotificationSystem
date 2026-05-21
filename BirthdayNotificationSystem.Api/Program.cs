@@ -1,9 +1,6 @@
 using System.Reflection;
-using BirthdayNotificationSystem.Api.Data;
-using BirthdayNotificationSystem.Api.Options;
-using BirthdayNotificationSystem.Api.Services;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
+using BirthdayNotificationSystem.Application;
+using BirthdayNotificationSystem.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,29 +20,8 @@ builder.Services.AddSwaggerGen(options =>
     options.IncludeXmlComments(xmlPath);
 });
 
-builder.Services.Configure<EmailServiceOptions>(
-    builder.Configuration.GetSection(EmailServiceOptions.SectionName));
-builder.Services.Configure<WorkerOptions>(
-    builder.Configuration.GetSection(WorkerOptions.SectionName));
-
-builder.Services.AddDbContext<BirthdayNotificationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddScoped<ITimeZoneService, TimeZoneService>();
-builder.Services.AddScoped<IMessageTemplateService, MessageTemplateService>();
-builder.Services.AddScoped<INotificationScheduler, NotificationScheduler>();
-builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
-builder.Services.AddScoped<INotificationRecoveryService, NotificationRecoveryService>();
-builder.Services.AddScoped<IUserService, UserService>();
-
-builder.Services.AddHttpClient<IMessageSender, EmailServiceMessageSender>((serviceProvider, client) =>
-{
-    var options = serviceProvider.GetRequiredService<IOptions<EmailServiceOptions>>().Value;
-    client.BaseAddress = new Uri(options.BaseUrl);
-    client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds + 5);
-});
-
-builder.Services.AddHostedService<NotificationWorker>();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 

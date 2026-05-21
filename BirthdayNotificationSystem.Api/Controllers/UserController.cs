@@ -1,5 +1,6 @@
-using BirthdayNotificationSystem.Api.Contracts;
-using BirthdayNotificationSystem.Api.Services;
+using BirthdayNotificationSystem.Application.Contracts;
+using BirthdayNotificationSystem.Application.Exceptions;
+using BirthdayNotificationSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BirthdayNotificationSystem.Api.Controllers;

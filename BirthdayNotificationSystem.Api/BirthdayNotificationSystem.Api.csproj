@@ -13,8 +13,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.5" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BirthdayNotificationSystem.Application\BirthdayNotificationSystem.Application.csproj" />
+    <ProjectReference Include="..\BirthdayNotificationSystem.Infrastructure\BirthdayNotificationSystem.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

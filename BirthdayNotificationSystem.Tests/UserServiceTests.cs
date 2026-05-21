@@ -1,8 +1,12 @@
-using BirthdayNotificationSystem.Api.Contracts;
-using BirthdayNotificationSystem.Api.Data;
-using BirthdayNotificationSystem.Api.Domain;
-using BirthdayNotificationSystem.Api.Services;
+using BirthdayNotificationSystem.Application.Contracts;
+using BirthdayNotificationSystem.Application.Exceptions;
+using BirthdayNotificationSystem.Application.Interfaces;
+using BirthdayNotificationSystem.Application.Services;
+using BirthdayNotificationSystem.Domain;
+using BirthdayNotificationSystem.Infrastructure.Data;
+using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 
 namespace BirthdayNotificationSystem.Tests;
 
@@ -18,10 +22,10 @@ public sealed class UserServiceTests
 
         var response = await service.CreateAsync(new CreateUserRequest
         {
-            FirstName = "Ava",
-            LastName = "Taylor",
-            Email = "ava.taylor@example.com",
-            Birthday = new DateOnly(1992, 5, 19),
+            FirstName = "Affan",
+            LastName = "Daf",
+            Email = "affan.daf@example.com",
+            Birthday = new DateOnly(1990, 5, 19),
             AnniversaryDate = new DateOnly(2018, 9, 10),
             TimeZoneId = "Australia/Melbourne",
             LocationText = "Melbourne, Australia"
@@ -32,16 +36,112 @@ public sealed class UserServiceTests
             .OrderBy(notification => notification.NotificationType)
             .ToListAsync();
 
-        Assert.Equal(user.Id, response.Id);
-        Assert.Equal(2, notifications.Count);
-        Assert.All(notifications, notification =>
+        response.Id.Should().Be(user.Id);
+        notifications.Should().HaveCount(2);
+        notifications.Should().OnlyContain(notification =>
+            notification.UserId == user.Id &&
+            notification.Status == NotificationStatus.Pending);
+        notifications.Should().Contain(notification => notification.NotificationType == NotificationType.Birthday);
+        notifications.Should().Contain(notification => notification.NotificationType == NotificationType.Anniversary);
+        response.UpcomingNotifications.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ThrowsValidationErrorWhenEmailFormatIsInvalid()
+    {
+        await using var dbContext = CreateDbContext();
+        var scheduler = Substitute.For<INotificationScheduler>();
+        var timeZoneService = Substitute.For<ITimeZoneService>();
+        timeZoneService.GetTimeZone("Australia/Melbourne")
+            .Returns(TimeZoneInfo.FindSystemTimeZoneById("Australia/Melbourne"));
+        var service = new UserService(dbContext, scheduler, timeZoneService);
+
+        var act = async () => await service.CreateAsync(new CreateUserRequest
         {
-            Assert.Equal(user.Id, notification.UserId);
-            Assert.Equal(NotificationStatus.Pending, notification.Status);
+            FirstName = "Affan",
+            LastName = "Daf",
+            Email = "not-an-email",
+            Birthday = new DateOnly(1990, 5, 19),
+            TimeZoneId = "Australia/Melbourne",
+            LocationText = "Melbourne, Australia"
+        }, CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<UserInputException>();
+        exception.Which.Errors.Should().ContainKey("email")
+            .WhoseValue.Should().ContainSingle("Email address format is invalid.");
+        await scheduler.DidNotReceiveWithAnyArgs()
+            .ScheduleUpcomingNotificationsAsync(default!, default, default);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ThrowsValidationErrorWhenEmailAlreadyExists()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Users.Add(new User
+        {
+            FirstName = "Affan",
+            LastName = "Daf",
+            Email = "affan.daf@example.com",
+            Birthday = new DateOnly(1990, 5, 19),
+            TimeZoneId = "Australia/Melbourne",
+            LocationText = "Melbourne, Australia",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow
         });
-        Assert.Contains(notifications, notification => notification.NotificationType == NotificationType.Birthday);
-        Assert.Contains(notifications, notification => notification.NotificationType == NotificationType.Anniversary);
-        Assert.Equal(2, response.UpcomingNotifications.Count);
+        await dbContext.SaveChangesAsync();
+
+        var scheduler = Substitute.For<INotificationScheduler>();
+        var timeZoneService = Substitute.For<ITimeZoneService>();
+        timeZoneService.GetTimeZone("Australia/Melbourne")
+            .Returns(TimeZoneInfo.FindSystemTimeZoneById("Australia/Melbourne"));
+        var service = new UserService(dbContext, scheduler, timeZoneService);
+
+        var act = async () => await service.CreateAsync(new CreateUserRequest
+        {
+            FirstName = "Another",
+            LastName = "User",
+            Email = "AFFAN.DAF@example.com",
+            Birthday = new DateOnly(1995, 3, 20),
+            TimeZoneId = "Australia/Melbourne",
+            LocationText = "Melbourne, Australia"
+        }, CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<UserInputException>();
+        exception.Which.Errors.Should().ContainKey("email")
+            .WhoseValue.Should().ContainSingle("Email address already exists.");
+        await scheduler.DidNotReceiveWithAnyArgs()
+            .ScheduleUpcomingNotificationsAsync(default!, default, default);
+    }
+
+    [Fact]
+    public async Task CreateAsync_UsesSchedulerForCreatedUser()
+    {
+        await using var dbContext = CreateDbContext();
+        var scheduler = Substitute.For<INotificationScheduler>();
+        var timeZoneService = Substitute.For<ITimeZoneService>();
+        timeZoneService.GetTimeZone("Australia/Melbourne")
+            .Returns(TimeZoneInfo.FindSystemTimeZoneById("Australia/Melbourne"));
+        var service = new UserService(dbContext, scheduler, timeZoneService);
+
+        var response = await service.CreateAsync(new CreateUserRequest
+        {
+            FirstName = "Affan",
+            LastName = "Daf",
+            Email = "affan.daf@example.com",
+            Birthday = new DateOnly(1990, 5, 19),
+            AnniversaryDate = new DateOnly(2018, 9, 10),
+            TimeZoneId = "Australia/Melbourne",
+            LocationText = "Melbourne, Australia"
+        }, CancellationToken.None);
+
+        var user = await dbContext.Users.SingleAsync();
+
+        response.Id.Should().Be(user.Id);
+        await scheduler.Received(1)
+            .ScheduleUpcomingNotificationsAsync(
+                Arg.Is<User>(candidate => candidate.Id == user.Id),
+                Arg.Any<DateTimeOffset>(),
+                CancellationToken.None);
     }
 
     [Fact]
@@ -51,10 +151,10 @@ public sealed class UserServiceTests
         var scheduler = new NotificationScheduler(dbContext, new TimeZoneService());
         var user = new User
         {
-            FirstName = "Ava",
-            LastName = "Taylor",
-            Email = "ava.taylor@example.com",
-            Birthday = new DateOnly(1992, 5, 19),
+			FirstName = "Affan",
+			LastName = "Daf",
+			Email = "affan.daf@example.com",
+			Birthday = new DateOnly(1990, 5, 19),
             TimeZoneId = "America/New_York",
             LocationText = "New York",
             CreatedAtUtc = DateTimeOffset.UtcNow,
@@ -69,7 +169,8 @@ public sealed class UserServiceTests
         await scheduler.ScheduleNextAsync(user, NotificationType.Birthday, utcNow, CancellationToken.None);
         await dbContext.SaveChangesAsync();
 
-        Assert.Equal(1, await dbContext.Notifications.CountAsync());
+        var notificationCount = await dbContext.Notifications.CountAsync();
+        notificationCount.Should().Be(1);
     }
 
     private static BirthdayNotificationDbContext CreateDbContext()

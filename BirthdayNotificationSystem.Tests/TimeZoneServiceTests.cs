@@ -1,4 +1,5 @@
-using BirthdayNotificationSystem.Api.Services;
+using BirthdayNotificationSystem.Application.Services;
+using FluentAssertions;
 
 namespace BirthdayNotificationSystem.Tests;
 
@@ -14,8 +15,8 @@ public sealed class TimeZoneServiceTests
 
         var schedule = _service.CalculateNextAnnualNotification(birthday, "America/New_York", utcNow);
 
-        Assert.Equal(2026, schedule.EventYear);
-        Assert.Equal(new DateTimeOffset(2026, 5, 19, 13, 0, 0, TimeSpan.Zero), schedule.ScheduledAtUtc);
+        schedule.EventYear.Should().Be(2026);
+        schedule.ScheduledAtUtc.Should().Be(new DateTimeOffset(2026, 5, 19, 13, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
@@ -26,8 +27,8 @@ public sealed class TimeZoneServiceTests
 
         var schedule = _service.CalculateNextAnnualNotification(birthday, "Australia/Melbourne", utcNow);
 
-        Assert.Equal(2026, schedule.EventYear);
-        Assert.Equal(new DateTimeOffset(2026, 5, 18, 23, 0, 0, TimeSpan.Zero), schedule.ScheduledAtUtc);
+        schedule.EventYear.Should().Be(2026);
+        schedule.ScheduledAtUtc.Should().Be(new DateTimeOffset(2026, 5, 18, 23, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
@@ -37,7 +38,7 @@ public sealed class TimeZoneServiceTests
 
         var schedule = _service.CalculateAnnualNotificationForYear(birthday, "America/New_York", 2027);
 
-        Assert.Equal(2027, schedule.EventYear);
-        Assert.Equal(new DateTimeOffset(2027, 2, 28, 14, 0, 0, TimeSpan.Zero), schedule.ScheduledAtUtc);
+        schedule.EventYear.Should().Be(2027);
+        schedule.ScheduledAtUtc.Should().Be(new DateTimeOffset(2027, 2, 28, 14, 0, 0, TimeSpan.Zero));
     }
 }

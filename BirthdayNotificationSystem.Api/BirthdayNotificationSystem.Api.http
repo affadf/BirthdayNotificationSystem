@@ -1,0 +1,39 @@
+@BirthdayNotificationSystem.Api_HostAddress = https://localhost:7085
+@userId = 00000000-0000-0000-0000-000000000000
+
+GET {{BirthdayNotificationSystem.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+POST {{BirthdayNotificationSystem.Api_HostAddress}}/user
+Content-Type: application/json
+
+{
+  "firstName": "Ava",
+  "lastName": "Taylor",
+  "email": "ava.taylor@example.com",
+  "birthday": "1992-05-19",
+  "anniversaryDate": "2018-09-10",
+  "timeZoneId": "Australia/Melbourne",
+  "locationText": "Melbourne, Australia"
+}
+
+###
+
+PUT {{BirthdayNotificationSystem.Api_HostAddress}}/user/{{userId}}
+Content-Type: application/json
+
+{
+  "firstName": "Ava",
+  "lastName": "Taylor",
+  "email": "ava.taylor@example.com",
+  "birthday": "1992-05-19",
+  "anniversaryDate": "2018-09-10",
+  "timeZoneId": "America/New_York",
+  "locationText": "New York, United States"
+}
+
+###
+
+DELETE {{BirthdayNotificationSystem.Api_HostAddress}}/user/{{userId}}

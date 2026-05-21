@@ -58,10 +58,10 @@ Example create request:
 
 ```json
 {
-  "firstName": "Ava",
-  "lastName": "Taylor",
-  "email": "ava.taylor@example.com",
-  "birthday": "1992-05-19",
+  "firstName": "Affan",
+  "lastName": "Daf",
+  "email": "affan.daf@example.com",
+  "birthday": "1990-05-19",
   "anniversaryDate": "2018-09-10",
   "timeZoneId": "Australia/Melbourne",
   "locationText": "Melbourne, Australia"
